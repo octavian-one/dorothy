@@ -1236,7 +1236,7 @@ function dorothy() (
 
 			# configure
 			config-helper --file="$HOME/.config/elvish/rc.elv" -- \
-				--find='.+? # Dorothy' --replace="eval (cat '$DOROTHY/init.elv' | slurp) # Dorothy"
+				--find='.+? # Dorothy' --replace="use '$DOROTHY/init.elv' # Dorothy"
 		else
 			mkdir -p "$HOME/.config/elvish"
 			config-helper --file="$HOME/.config/elvish/rc.elv" -- \

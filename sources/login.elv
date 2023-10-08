@@ -1,7 +1,7 @@
 #!/usr/bin/env elvish
 
 # essential
-eval (cat $E:DOROTHY'/sources/environment.elv' | slurp)
+use './environment.elv'
 
 # clear the theme cache
 get-terminal-theme --clear-cache

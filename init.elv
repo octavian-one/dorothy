@@ -11,7 +11,7 @@ if (has-env 'DOROTHY') {
 # https://elv.sh/ref/command.html#rc-file
 # https://elv.sh/ref/runtime.html
 # https://github.com/elves/elvish/issues/1726
+use './sources/login.elv'
 if (not-eq $runtime:effective-rc-path $nil) {
-	eval (cat $E:DOROTHY'/sources/login.elv' | slurp)
-	eval (cat $E:DOROTHY'/sources/interactive.elv' | slurp)
+	use './sources/interactive.elv'
 }
