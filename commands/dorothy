@@ -857,7 +857,7 @@ function dorothy() (
 			fi
 
 			# prepare
-			local question='' user='' where='' cli='' repo_git='' repo_url='' repo_name repo_description local_ip
+			local question='' user='' where='' cli='' repo_git='' repo_url='' repo_name repo_description strongbox_repo_url strongbox_key_id strongbox_keyring strongbox_configured='no' local_ip
 			repo_name='dotfiles'
 			repo_description="My user configuration for the Dorothy dotfile ecosystem: $dorothy_url"
 
@@ -943,10 +943,10 @@ function dorothy() (
 						Create a repository for your Dorothy user configuration using the following details.
 
 						Repository name:
-						${repo_name}
+						$repo_name
 
 						Description:
-						${repo_description}
+						$repo_description
 
 						Visibility:
 						Public
@@ -966,32 +966,48 @@ function dorothy() (
 			# if we have a repo url, then clone it
 			if test -n "$repo_url"; then
 				# check if it is strongbox
-				if fetch --ok "$(git-helper protocol-format "$repo_url" https | sed -E 's#.git$#/raw/master/.strongbox-keyid#')"; then
-					echo-style --notice='Strongbox repository detected.'
+				strongbox_repo_url="$(git-helper protocol-format "$repo_url" https | sed -E 's#.git$#/raw/HEAD/.strongbox-keyid#')"
+				if fetch --ok "$strongbox_repo_url"; then
+					# ensure strongbox
+					echo-style --notice="Strongbox repository detected."
 					setup-util-strongbox
-					local_ip="$(what-is-my-ip local | echo-first-line || :)"
-					question="$(
-						cat <<-EOF
-							You will now be prompted to update your $(echo-style --code="~/.strongbox_keyring") file.
+					# check if we already have the key id
+					strongbox_keyring="$HOME/.strongbox_keyring"
+					if test -f "$strongbox_keyring"; then
+						# we have a keyring, check if it already has the key id
+						strongbox_key_id="$(fetch "$strongbox_repo_url")"
+						if grep --quiet --fixed-strings --regexp="$strongbox_key_id" "$strongbox_keyring"; then
+							# we already have it
+							strongbox_configured='yes'
+							echo-style --success="Strongbox repository already configured."
+						fi
+					fi
+					if test "$strongbox_configured" = 'no'; then
+						local_ip="$(what-is-my-ip local | echo-first-line || :)"
+						question="$(
+							cat <<-EOF
+								To decrypt some of this repository's files you will need its Strongbox keyring entry.
 
-							If VNC is enabled, run the following on your primary machine to copy the contents:
+								If VNC is enabled, run the following on your primary machine to copy the contents:
 
 								$(echo-style --code='cat ~/.strongbox_keyring')
-								$(echo-style --code="open vnc://${local_ip}")
+								$(echo-style --code="open vnc://$local_ip")
 
-							If SSH is enabled, run the following on your primary machine to write the contents:
+								If SSH is enabled, run the following on your primary machine to write the contents:
 
-								$(echo-style --code="cpr -- \"\$HOME/.strongbox_keyring\" \"$(whoami)@${local_ip}:$HOME/.strongbox_keyring\"")
+								$(echo-style --code="cpr -- \"\$HOME/.strongbox_keyring\" \"$(whoami)@$local_ip:$HOME/.strongbox_keyring\"")
 
-							To enable SSH, do the following on this machine:
+								To enable SSH, do the following on this machine:
 
 								macOS via: System Preferences > Sharing > Remote Login.
-								Linux via: $(echo-style --code="bash -ic \"\$(curl -fsSL https://dorothy.bevry.workers.dev/commands/setup-util-sshd)\"")
+								Linux via: $(echo-style --code="bash -ic \"\$(curl -fsSL https://dorothy.bevry.me/commands/setup-util-sshd)\"")
 
-						EOF
-					)"
-					if test ! -f "$HOME/.strongbox_keyring" && confirm --ppid=$$ -- "$question"; then
-						edit "$HOME/.strongbox_keyring"
+								Regardless, press ENTER to continue, which will prompt you to confirm/edit the keyring file.
+							EOF
+						)"
+						if confirm --ppid=$$ -- "$question"; then
+							edit -- "$HOME/.strongbox_keyring"
+						fi
 					fi
 				fi
 
@@ -1008,7 +1024,7 @@ function dorothy() (
 			fi
 
 			# if we haven't initialised, then manually initialise
-			if test ! -d "$DOROTHY/user"; then
+			if test ! -d "$DOROTHY/user/.git"; then
 				git_init "$DOROTHY/user"
 				echo-style --yellow='Manually initialised git repository at ' --yellow+bold="$DOROTHY/user"
 			fi
@@ -1064,7 +1080,7 @@ function dorothy() (
 				cat <<-EOF
 					# Dorothy User Configuration
 
-					This is ${who} user configuration for the [Dorothy](${dorothy_url}) dotfile ecosystem.
+					This is $who user configuration for the [Dorothy]($dorothy_url) dotfile ecosystem.
 				EOF
 			)"
 			if test ! -f "$file"; then
